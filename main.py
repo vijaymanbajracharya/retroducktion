@@ -23,7 +23,7 @@ login(token='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')
 # OpenAI embedding model
 os.environ["OPENAI_API_KEY"] = "sk-proj-HQ4mTWV22vFDUzUah986T3BlbkFJGQ42tgoYZyXNwBE6SqJH"
 
-# Set up HuggingFace Pipeline with Llama-2-7b-chat-hf model
+# set up HuggingFace Pipeline with Llama-2-7b-chat-hf model
 model = "meta-llama/Llama-2-7b-chat-hf"
 tokenizer = AutoTokenizer.from_pretrained(model)
 pipeline = transformers.pipeline(
@@ -43,5 +43,59 @@ pipeline = transformers.pipeline(
 # LLM intialized in HuggingFace Pipeline wrapper
 llm = HuggingFacePipeline(pipeline = pipeline, model_kwargs = {'temperature':0})
 
-if __name__ == '__main__':
-    pass
+# load the knowledge base
+loader = CSVLoader('data/test.csv')
+docs = loader.load()
+
+# split document into text chunks
+# in order to create vector embedding of our data, we need to tokenize our text
+text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+docs = text_splitter.split_documents(docs)
+
+# initialize the open-source embedding function, default: text-embedding-ada-002
+# this embedding function converts text chunks into tokens
+embedding_function = OpenAIEmbeddings()
+
+# load it into ChromaDB
+# a database used to store vector embeddings
+db = Chroma.from_documents(docs, embedding_function)
+
+# design prompt template
+# make the LLM think that they are playing a role by using the template 
+template = """You are a customer service chatbot for an online perfume company called Fragrances International.
+
+{context}
+
+Answer the customer's questions only using the source data provided. If you are unsure, say "I don't know, please call our customer support". Use engaging, courteous, and professional language similar to a customer representative.
+Keep your answers concise.
+
+Question:
+
+Answer: """
+
+# intiliaze prompt using prompt template via LangChain
+prompt = PromptTemplate(template=template, input_variables=["context"])
+print(
+    prompt.format(
+        context = "A customer is on the perfume company website and wants to chat with the website chatbot."
+    )
+)
+
+# chain to have all components together and query the LLM
+chain_type_kwargs = {"prompt": prompt}
+
+chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=db.as_retriever(search_kwargs={"k": 1}),
+    chain_type_kwargs=chain_type_kwargs,
+)
+
+# formatted printing
+def print_response(response: str):
+    print("\n".join(textwrap.wrap(response, width=80)))
+
+# running chain through LLM with query
+query = "What types of perfumes do you sell?"
+response = chain.run(query)
+print_response(response)
