@@ -17,11 +17,11 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 
 from huggingface_hub import login
-login(token='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')
+login(token='')
 
 # CONFIG
 # OpenAI embedding model
-os.environ["OPENAI_API_KEY"] = "sk-proj-HQ4mTWV22vFDUzUah986T3BlbkFJGQ42tgoYZyXNwBE6SqJH"
+os.environ["OPENAI_API_KEY"] = ""
 
 # set up HuggingFace Pipeline with Llama-2-7b-chat-hf model
 model = "meta-llama/Llama-2-7b-chat-hf"
